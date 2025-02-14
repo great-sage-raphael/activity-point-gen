@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 import { Activity, Award, Book, Calendar } from "lucide-react";
-import { FileUploadcomponent } from "@/app/components/Fileupload";
+import { FileUploadComponent } from "@/app/components/Fileupload";
+
 
 const StudentDashboard = () => {
   const params = useParams();
@@ -188,7 +189,7 @@ const StudentDashboard = () => {
           <h2 className="text-xl font-bold text-[#7469B6] mb-6">Upload New Activity</h2>
           <form onSubmit={handleSubmit}>
             <div className="py-3">
-            <FileUploadcomponent />
+            <FileUploadComponent />
             </div>
            <div className="flex justify-center">
            <button type="submit" className="w-1/2  bg-[#7469B6] text-white py-2 px-4 rounded-lg">

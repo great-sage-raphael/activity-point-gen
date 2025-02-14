@@ -13,7 +13,7 @@ export default function Home() {
         <nav className="container mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Activity className="h-6 w-6" />
-            <span className="text-xl font-bold">ActivitypointTracker</span>
+            <span className="text-xl font-bold">AutoPoint</span>
           </div>
           <div className="flex items-center space-x-6">
             <Link href="#" className="hover:text-[#E1AFD1] transition-colors">Home</Link>
@@ -58,7 +58,7 @@ export default function Home() {
       <section className="bg-white py-20">
         <div className="container mx-auto px-6">
           <h2 className="text-3xl font-bold text-center text-[#7469B6] mb-16">
-            Why Choose ActivityTracker?
+            Why Choose AutoPoint?
           </h2>
           <div className="grid md:grid-cols-3 gap-12">
             <FeatureCard 
@@ -86,7 +86,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-2 mb-4 md:mb-0">
               <Activity className="h-6 w-6" />
-              <span className="text-xl font-bold">ActivityTracker</span>
+              <span className="text-xl font-bold">AutoPoint</span>
             </div>
             <div className="flex space-x-6">
               <Link href="#" className="hover:text-[#E1AFD1] transition-colors">Privacy Policy</Link>
@@ -95,7 +95,7 @@ export default function Home() {
             </div>
           </div>
           <div className="mt-8 text-center text-sm">
-            © {new Date().getFullYear()} ActivityTracker. All rights reserved.
+            © {new Date().getFullYear()} AutoPoint. All rights reserved.
           </div>
         </div>
       </footer>

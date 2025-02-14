@@ -6,6 +6,7 @@ import supabase from "@/lib/supabase";
 import Table from "@/app/components/Table";
 import StatCard from "@/app/components/StatCard";
 import Section from "@/app/components/Section";
+import { useRouter } from "next/navigation";
 
 interface Student {
   id: string;
@@ -31,6 +32,7 @@ interface Stats {
 }
 
 export default function TeacherDashboard() {
+    const router=useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [pendingActivities, setPendingActivities] = useState<Activity[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -164,8 +166,11 @@ export default function TeacherDashboard() {
 
   async function handleSignOut() {
     const { error } = await supabase.auth.signOut();
-    if (error) console.error("Error signing out:", error);
-    else window.location.href = "/";  // Updated to redirect to root where Auth component is
+    if (!error) {
+        router.push("/login");
+      } else {
+        console.error("Sign out error:", error.message);
+      }  // Updated to redirect to root where Auth component is
   }
 
   return (
