@@ -4,6 +4,12 @@ import supabase from '../../lib/supabase';
 import { UserPlus, LogIn } from 'lucide-react';
 import { useRouter } from "next/navigation";
 
+interface Teacher {
+  id: string;
+  name: string;
+  email: string;
+}
+
 const Auth = () => {
   const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
@@ -15,17 +21,60 @@ const Auth = () => {
   const [teacher_id, setTeacherId] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [availableTeachers, setAvailableTeachers] = useState<Teacher[]>([]);
+  const [teacherFetchError, setTeacherFetchError] = useState<string>('');
 
   useEffect(() => {
     setMessage('');
   }, [isLogin]);
+
+  useEffect(() => {
+    const fetchTeachers = async () => {
+      if (role === 'student' && !isLogin) {
+        setTeacherFetchError('');
+        try {
+          let { data, error } = await supabase
+            .from('teachers')
+            .select('id, name, email');
+
+          if (error) {
+            console.error('Supabase error:', error);
+            setTeacherFetchError('Failed to load teachers. Please try again.');
+            setAvailableTeachers([]);
+            return;
+          }
+
+          if (!data) {
+            setAvailableTeachers([]);
+            return;
+          }
+
+          const validTeachers = data.filter((teacher): teacher is Teacher => {
+            return (
+              typeof teacher.id === 'string' &&
+              typeof teacher.name === 'string' &&
+              typeof teacher.email === 'string'
+            );
+          });
+
+          setAvailableTeachers(validTeachers);
+        } catch (err) {
+          console.error('Fetch error:', err);
+          setTeacherFetchError('An unexpected error occurred. Please try again.');
+          setAvailableTeachers([]);
+        }
+      }
+    };
+
+    fetchTeachers();
+  }, [role, isLogin]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setMessage('');
 
-    
+    // Basic validation
     if (!email.trim() || !password.trim()) {
       setMessage('Email and password are required.');
       setIsLoading(false);
@@ -38,17 +87,16 @@ const Auth = () => {
       return;
     }
 
-    
+    // Additional validation for students
     if (!isLogin && role === 'student') {
       if (!class_name.trim()) {
         setMessage('Class name is required for students.');
         setIsLoading(false);
         return;
       }
-      
-   
-      if (teacher_id.trim() && !isValidUUID(teacher_id.trim())) {
-        setMessage('Invalid teacher ID format.');
+
+      if (!teacher_id) {
+        setMessage('Please select a teacher.');
         setIsLoading(false);
         return;
       }
@@ -56,7 +104,7 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        
+        // Sign In
         const { error, data } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password: password.trim(),
@@ -67,21 +115,36 @@ const Auth = () => {
           return;
         }
 
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
+        // Determine which table to check based on stored role
+        let userRole = '';
+        const { data: teacherData } = await supabase
+          .from('teachers')
+          .select('id')
           .eq('id', data.user.id)
           .single();
 
-        if (profileError || !profile) {
-          setMessage('Error fetching user role.');
-          return;
+        if (teacherData) {
+          userRole = 'teacher';
+        } else {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', data.user.id)
+            .single();
+
+          if (profileData) {
+            userRole = profileData.role;
+          }
         }
 
-        if (profile.role === 'teacher') {
+        // Redirect based on role
+        if (userRole === 'teacher') {
           router.push(`/Dashboard/Teacher/${data.user.id}`);
-        } else {
+        } else if (userRole === 'student') {
           router.push(`/Dashboard/Student/${data.user.id}`);
+        } else {
+          setMessage('Error: User role not found');
+          return;
         }
       } else {
         // Sign Up
@@ -98,44 +161,46 @@ const Auth = () => {
         }
 
         if (data.user) {
-          // Prepare profile data with proper handling of teacher_id
-          const profileData: any = {
-            id: data.user.id,
-            role,
-            student_name: student_name.trim(),
-            class_name: role === 'student' ? class_name.trim() : null,
-            teacher: role === 'student' && teacher_id.trim() ? teacher_id.trim() : null
-          };
+          try {
+            if (role === 'teacher') {
+              // Insert into teachers table
+              const { error: teacherError } = await supabase
+                .from('teachers')
+                .insert([{
+                  id: data.user.id,
+                  name: student_name.trim(),
+                  email: email.trim(),
+                  password: password.trim() // Note: Consider hashing this password
+                }]);
 
-          // Verify teacher exists if teacher_id is provided
-          if (profileData.teacher) {
-            const { data: teacherData, error: teacherError } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('id', profileData.teacher)
-              .eq('role', 'teacher')
-              .single();
+              if (teacherError) {
+                setMessage('Error creating teacher account: ' + teacherError.message);
+                return;
+              }
+            } else {
+              // Insert student profile
+              const { error: profileError } = await supabase
+                .from('profiles')
+                .insert([{
+                  id: data.user.id,
+                  student_name: student_name.trim(),
+                  role: 'student',
+                  class_name: class_name.trim(),
+                  teacher: teacher_id
+                }]);
 
-            if (teacherError || !teacherData) {
-              setMessage('Invalid teacher ID or teacher not found.');
-              setIsLoading(false);
-              return;
+              if (profileError) {
+                setMessage('Error creating student profile: ' + profileError.message);
+                return;
+              }
             }
+
+            setMessage('Account created successfully! Please verify your email and then log in.');
+            setIsLogin(true);
+            resetForm();
+          } catch (error: any) {
+            setMessage('Error during registration: ' + error.message);
           }
-
-          // Insert into profiles table
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([profileData]);
-
-          if (profileError) {
-            setMessage('Error saving profile: ' + profileError.message);
-            return;
-          }
-
-          setMessage('Account created successfully! You can now log in.');
-          setIsLogin(true);
-          resetForm();
         }
       }
     } catch (error: any) {
@@ -143,12 +208,6 @@ const Auth = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  // Helper function to validate UUID format
-  const isValidUUID = (uuid: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    return uuidRegex.test(uuid);
   };
 
   const resetForm = () => {
@@ -165,7 +224,6 @@ const Auth = () => {
     setMessage('');
   };
 
-  // Rest of the component remains the same...
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-md mx-auto bg-white/90 p-8 rounded-lg shadow-lg">
@@ -174,7 +232,9 @@ const Auth = () => {
             {isLogin ? 'Welcome Back' : 'Create Account'}
           </h2>
           <p className="text-gray-600 mt-2">
-            {isLogin ? 'Sign in to continue' : 'Sign up to get started and verify your email to sign in'}
+            {isLogin 
+              ? 'Sign in to continue' 
+              : 'Sign up to get started and verify your email to sign in'}
           </p>
         </div>
 
@@ -188,6 +248,7 @@ const Auth = () => {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-2 border text-gray-600 rounded-lg focus:outline-none focus:border-[#866ec7]"
               placeholder="your@email.com"
+              required
             />
           </div>
 
@@ -201,6 +262,7 @@ const Auth = () => {
               className="w-full px-4 py-2 border text-gray-700 rounded-lg focus:outline-none focus:border-[#866ec7]"
               placeholder="Minimum 6 characters"
               minLength={6}
+              required
             />
           </div>
 
@@ -215,6 +277,7 @@ const Auth = () => {
                   onChange={(e) => setStudentName(e.target.value)}
                   className="w-full px-4 py-2 border text-gray-600 rounded-lg focus:outline-none focus:border-[#866ec7]"
                   placeholder="Your name"
+                  required
                 />
               </div>
 
@@ -242,19 +305,46 @@ const Auth = () => {
                       onChange={(e) => setClassName(e.target.value)}
                       className="w-full px-4 py-2 border text-gray-700 rounded-lg focus:outline-none focus:border-[#866ec7]"
                       placeholder="Enter your class (e.g., csec1, csec2)"
+                      required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-gray-700 mb-2" htmlFor="teacher_id">Teacher ID (UUID format)</label>
-                    <input
+                    <label className="block text-gray-700 mb-2" htmlFor="teacher_id">
+                      Select Teacher
+                      {teacherFetchError && (
+                        <span className="text-red-500 text-sm ml-2">({teacherFetchError})</span>
+                      )}
+                    </label>
+                    <select
                       id="teacher_id"
-                      type="text"
                       value={teacher_id}
                       onChange={(e) => setTeacherId(e.target.value)}
-                      className="w-full px-4 py-2 border text-gray-700 rounded-lg focus:outline-none focus:border-[#866ec7]"
-                      placeholder="Enter your teacher's UUID"
-                    />
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-[#866ec7] ${
+                        teacherFetchError ? 'border-red-300' : 'text-gray-700'
+                      }`}
+                      required
+                      disabled={teacherFetchError !== ''}
+                    >
+                      <option value="">Select a teacher</option>
+                      {availableTeachers.map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {teacher.name} ({teacher.email})
+                        </option>
+                      ))}
+                    </select>
+                    {teacherFetchError && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTeacherFetchError('');
+                          setRole(role); // This will trigger the useEffect to fetch teachers again
+                        }}
+                        className="mt-2 text-sm text-[#866ec7] hover:underline"
+                      >
+                        Try loading teachers again
+                      </button>
+                    )}
                   </div>
                 </>
               )}

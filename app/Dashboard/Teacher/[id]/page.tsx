@@ -7,8 +7,6 @@ import Table from "@/app/components/Table";
 import StatCard from "@/app/components/StatCard";
 import Section from "@/app/components/Section";
 
-
-// Define TypeScript interfaces
 interface Student {
   id: string;
   student_name: string;
@@ -42,7 +40,7 @@ export default function TeacherDashboard() {
     rejected: 0,
   });
   const [teacherId, setTeacherId] = useState<string | null>(null);
-  const [className, setClassName] = useState<string>("");
+  const [teacherName, setTeacherName] = useState<string>("");
 
   useEffect(() => {
     fetchTeacherData();
@@ -57,32 +55,34 @@ export default function TeacherDashboard() {
 
     const userId = userData.user.id;
 
-    const { data: teacherProfile, error: profileError } = await supabase
-      .from("profiles")
-      .select("id, class_name")
+    // Fetch teacher data from teachers table instead of profiles
+    const { data: teacherData, error: teacherError } = await supabase
+      .from("teachers")
+      .select("id, name")
       .eq("id", userId)
       .single();
 
-    if (profileError) {
-      console.error("Error fetching teacher profile:", profileError);
+    if (teacherError) {
+      console.error("Error fetching teacher data:", teacherError);
       return;
     }
 
-    setTeacherId(teacherProfile.id);
-    setClassName(teacherProfile.class_name);
+    setTeacherId(teacherData.id);
+    setTeacherName(teacherData.name);
 
-    fetchStats(teacherProfile.id);
-    fetchStudents(teacherProfile.class_name);
-    fetchPendingActivities(teacherProfile.id);
+    fetchStats(teacherData.id);
+    fetchStudents(teacherData.id);
+    fetchPendingActivities(teacherData.id);
   }
 
   async function fetchStats(teacherId: string) {
     if (!teacherId) return;
 
+    // Get students associated with this teacher
     const { count: totalStudents } = await supabase
       .from("profiles")
       .select("*", { count: "exact" })
-      .eq("teacher_id", teacherId);
+      .eq("teacher", teacherId); // Updated to match Auth component's field name
 
     const { count: pendingReview } = await supabase
       .from("activities")
@@ -110,6 +110,19 @@ export default function TeacherDashboard() {
     });
   }
 
+  async function fetchStudents(teacherId: string) {
+    if (!teacherId) return;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, student_name, total_activities, total_points, status")
+      .eq("teacher", teacherId) 
+      .eq("role", "student");
+
+    if (error) console.error("Error fetching students:", error);
+    else setStudents(data || []);
+  }
+
   async function fetchPendingActivities(teacherId: string) {
     if (!teacherId) return;
 
@@ -121,19 +134,6 @@ export default function TeacherDashboard() {
 
     if (error) console.error("Error fetching activities:", error);
     else setPendingActivities(data || []);
-  }
-
-  async function fetchStudents(className: string) {
-    if (!className) return;
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, student_name, total_activities, total_points, status")
-      .eq("class_name", className)
-      .eq("role", "student");
-
-    if (error) console.error("Error fetching students:", error);
-    else setStudents(data || []);
   }
 
   async function handleApprove(activityId: string) {
@@ -165,14 +165,17 @@ export default function TeacherDashboard() {
   async function handleSignOut() {
     const { error } = await supabase.auth.signOut();
     if (error) console.error("Error signing out:", error);
-    else window.location.href = "/login";
+    else window.location.href = "/";  // Updated to redirect to root where Auth component is
   }
 
   return (
     <div className="min-h-screen bg-[#FFE6E6]">
       <header className="bg-[#7469B6] text-white py-4">
         <div className="container mx-auto px-6 flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Teacher Dashboard</h1>
+          <div>
+            <h1 className="text-2xl font-bold">Teacher Dashboard</h1>
+            <p className="text-sm opacity-90">Welcome, {teacherName}</p>
+          </div>
           <button
             className="bg-[#AD88C6] px-4 py-2 rounded-lg hover:bg-[#E1AFD1] transition-colors"
             onClick={handleSignOut}
@@ -183,10 +186,6 @@ export default function TeacherDashboard() {
       </header>
 
       <main className="container mx-auto px-6 py-8">
-        <h2 className="text-xl font-bold text-[#7469B6] mb-4">
-          Managing Class: {className}
-        </h2>
-
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <StatCard title="Total Students" value={stats.totalStudents} Icon={Users} />
           <StatCard title="Pending Review" value={stats.pendingReview} Icon={Clock} />
