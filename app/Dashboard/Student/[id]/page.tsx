@@ -91,7 +91,7 @@ const StudentDashboard = () => {
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (!error) {
-      router.push("/login");
+      router.push("/");
     } else {
       console.error("Sign out error:", error.message);
     }

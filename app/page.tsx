@@ -37,10 +37,12 @@ export default function Home() {
               Transform your academic journey with our intelligent activity points management system. 
               Upload, track, and verify your achievements with ease.
             </p>
+            <Link href={`/login`}>
             <button className="bg-[#7469B6] text-white px-8 py-3 rounded-lg flex items-center space-x-2 hover:bg-[#AD88C6] transition-colors">
               <span>Get Started</span>
               <ArrowRight className="h-5 w-5" />
             </button>
+            </Link>
           </div>
           <div className="md:w-1/2">
             <Image 

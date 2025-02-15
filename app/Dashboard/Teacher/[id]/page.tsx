@@ -2,11 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { Users, CheckCircle, XCircle, Clock } from "lucide-react";
 import supabase from "@/lib/supabase";
-
 import Table from "@/app/components/Table";
 import StatCard from "@/app/components/StatCard";
 import Section from "@/app/components/Section";
 import { useRouter } from "next/navigation";
+
 
 interface Student {
   id: string;
@@ -32,7 +32,7 @@ interface Stats {
 }
 
 export default function TeacherDashboard() {
-    const router=useRouter();
+  const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [pendingActivities, setPendingActivities] = useState<Activity[]>([]);
   const [stats, setStats] = useState<Stats>({
@@ -43,134 +43,195 @@ export default function TeacherDashboard() {
   });
   const [teacherId, setTeacherId] = useState<string | null>(null);
   const [teacherName, setTeacherName] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchTeacherData();
   }, []);
 
-  async function fetchTeacherData() {
-    const { data: userData, error } = await supabase.auth.getUser();
-    if (error || !userData?.user) {
-      console.error("Error fetching user:", error);
-      return;
+  const fetchTeacherData = async () => {
+    try {
+      setIsLoading(true);
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error("Error fetching user:", userError);
+        router.push('/');
+        return;
+      }
+
+      if (!userData?.user?.id) {
+        console.error("No user found");
+        router.push('/');
+        return;
+      }
+
+      const { data: teacherData, error: teacherError } = await supabase
+        .from("teachers")
+        .select("id, name")
+        .eq("id", userData.user.id)
+        .single();
+
+      if (teacherError) {
+        console.error("Error fetching teacher data:", teacherError);
+        router.push('/');
+        return;
+      }
+
+      if (!teacherData) {
+        console.error("No teacher data found");
+        router.push('/');
+        return;
+      }
+
+      setTeacherId(teacherData.id);
+      setTeacherName(teacherData.name);
+
+      await Promise.all([
+        fetchStats(teacherData.id),
+        fetchStudents(teacherData.id),
+        fetchPendingActivities(teacherData.id)
+      ]);
+
+    } catch (error) {
+      console.error("Unexpected error:", error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    const userId = userData.user.id;
-
-    // Fetch teacher data from teachers table instead of profiles
-    const { data: teacherData, error: teacherError } = await supabase
-      .from("teachers")
-      .select("id, name")
-      .eq("id", userId)
-      .single();
-
-    if (teacherError) {
-      console.error("Error fetching teacher data:", teacherError);
-      return;
-    }
-
-    setTeacherId(teacherData.id);
-    setTeacherName(teacherData.name);
-
-    fetchStats(teacherData.id);
-    fetchStudents(teacherData.id);
-    fetchPendingActivities(teacherData.id);
-  }
-
-  async function fetchStats(teacherId: string) {
+  const fetchStats = async (teacherId: string) => {
     if (!teacherId) return;
 
-    // Get students associated with this teacher
-    const { count: totalStudents } = await supabase
-      .from("profiles")
-      .select("*", { count: "exact" })
-      .eq("teacher", teacherId); // Updated to match Auth component's field name
+    try {
+      const [
+        { count: totalStudents },
+        { count: pendingReview },
+        { count: approved },
+        { count: rejected }
+      ] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("*", { count: "exact", head: true })
+          .eq("teacher", teacherId),
+        supabase
+          .from("activities")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "pending")
+          .eq("teacher_id", teacherId),
+        supabase
+          .from("activities")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "approved")
+          .eq("teacher_id", teacherId),
+        supabase
+          .from("activities")
+          .select("*", { count: "exact", head: true })
+          .eq("status", "rejected")
+          .eq("teacher_id", teacherId)
+      ]);
 
-    const { count: pendingReview } = await supabase
-      .from("activities")
-      .select("*", { count: "exact" })
-      .eq("status", "pending")
-      .eq("teacher_id", teacherId);
+      setStats({
+        totalStudents: totalStudents || 0,
+        pendingReview: pendingReview || 0,
+        approved: approved || 0,
+        rejected: rejected || 0,
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
 
-    const { count: approved } = await supabase
-      .from("activities")
-      .select("*", { count: "exact" })
-      .eq("status", "approved")
-      .eq("teacher_id", teacherId);
-
-    const { count: rejected } = await supabase
-      .from("activities")
-      .select("*", { count: "exact" })
-      .eq("status", "rejected")
-      .eq("teacher_id", teacherId);
-
-    setStats({
-      totalStudents: totalStudents || 0,
-      pendingReview: pendingReview || 0,
-      approved: approved || 0,
-      rejected: rejected || 0,
-    });
-  }
-
-  async function fetchStudents(teacherId: string) {
+  const fetchStudents = async (teacherId: string) => {
     if (!teacherId) return;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, student_name, total_activities, total_points, status")
-      .eq("teacher", teacherId) 
-      .eq("role", "student");
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, student_name, total_activities, total_points, status")
+        .eq("teacher", teacherId)
+        .eq("role", "student");
 
-    if (error) console.error("Error fetching students:", error);
-    else setStudents(data || []);
-  }
+      if (error) throw error;
+      setStudents(data || []);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+    }
+  };
 
-  async function fetchPendingActivities(teacherId: string) {
+  const fetchPendingActivities = async (teacherId: string) => {
     if (!teacherId) return;
 
-    const { data, error } = await supabase
-      .from("activities")
-      .select("id, student_name, activity_name, date, points")
-      .eq("status", "pending")
-      .eq("teacher_id", teacherId);
+    try {
+      const { data, error } = await supabase
+        .from("activities")
+        .select("id, student_name, activity_name, date, points")
+        .eq("status", "pending")
+        .eq("teacher_id", teacherId);
 
-    if (error) console.error("Error fetching activities:", error);
-    else setPendingActivities(data || []);
-  }
-
-  async function handleApprove(activityId: string) {
-    const { error } = await supabase
-      .from("activities")
-      .update({ status: "approved" })
-      .eq("id", activityId);
-
-    if (error) console.error("Error approving:", error);
-    else {
-      fetchStats(teacherId!);
-      fetchPendingActivities(teacherId!);
+      if (error) throw error;
+      setPendingActivities(data || []);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
     }
-  }
+  };
 
-  async function handleReject(activityId: string) {
-    const { error } = await supabase
-      .from("activities")
-      .update({ status: "rejected" })
-      .eq("id", activityId);
+  const handleApprove = async (activityId: string) => {
+    try {
+      const { error } = await supabase
+        .from("activities")
+        .update({ status: "approved" })
+        .eq("id", activityId);
 
-    if (error) console.error("Error rejecting:", error);
-    else {
-      fetchStats(teacherId!);
-      fetchPendingActivities(teacherId!);
+      if (error) throw error;
+      
+      if (teacherId) {
+        await Promise.all([
+          fetchStats(teacherId),
+          fetchPendingActivities(teacherId)
+        ]);
+      }
+    } catch (error) {
+      console.error("Error approving activity:", error);
     }
-  }
+  };
 
-  async function handleSignOut() {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-        router.push("/login");
-      } else {
-        console.error("Sign out error:", error.message);
-      }  // Updated to redirect to root where Auth component is
+  const handleReject = async (activityId: string) => {
+    try {
+      const { error } = await supabase
+        .from("activities")
+        .update({ status: "rejected" })
+        .eq("id", activityId);
+
+      if (error) throw error;
+      
+      if (teacherId) {
+        await Promise.all([
+          fetchStats(teacherId),
+          fetchPendingActivities(teacherId)
+        ]);
+      }
+    } catch (error) {
+      console.error("Error rejecting activity:", error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      router.push("/");
+    } catch (error) {
+      console.error("Sign out error:", error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#FFE6E6] flex items-center justify-center">
+        <div className="text-[#7469B6] text-xl">Loading...</div>
+      </div>
+    );
   }
 
   return (
@@ -179,7 +240,9 @@ export default function TeacherDashboard() {
         <div className="container mx-auto px-6 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">Teacher Dashboard</h1>
-            <p className="text-sm opacity-90">Welcome, {teacherName}</p>
+            <p className="text-sm opacity-90">
+              {teacherName ? `Welcome, ${teacherName}` : 'Welcome'}
+            </p>
           </div>
           <button
             className="bg-[#AD88C6] px-4 py-2 rounded-lg hover:bg-[#E1AFD1] transition-colors"
@@ -199,23 +262,35 @@ export default function TeacherDashboard() {
         </div>
 
         <Section title="Pending Activities">
-          <Table
-            headers={["Student", "Activity", "Date", "Points", "Actions"]}
-            data={pendingActivities.map((activity) => [
-              activity.student_name,
-              activity.activity_name,
-              activity.date,
-              activity.points,
-              <div className="flex space-x-2" key={activity.id}>
-                <button onClick={() => handleApprove(activity.id)} className="bg-green-500 text-white px-3 py-1 rounded">
-                  Approve
-                </button>
-                <button onClick={() => handleReject(activity.id)} className="bg-red-500 text-white px-3 py-1 rounded">
-                  Reject
-                </button>
-              </div>,
-            ])}
-          />
+          {pendingActivities.length > 0 ? (
+            <Table
+              headers={["Student", "Activity", "Date", "Points", "Actions"]}
+              data={pendingActivities.map((activity) => [
+                activity.student_name,
+                activity.activity_name,
+                activity.date,
+                activity.points,
+                <div className="flex space-x-2" key={activity.id}>
+                  <button 
+                    onClick={() => handleApprove(activity.id)} 
+                    className="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600"
+                  >
+                    Approve
+                  </button>
+                  <button 
+                    onClick={() => handleReject(activity.id)} 
+                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                  >
+                    Reject
+                  </button>
+                </div>,
+              ])}
+            />
+          ) : (
+            <div className="text-center py-8 text-gray-600">
+              No pending activities to review
+            </div>
+          )}
         </Section>
       </main>
     </div>

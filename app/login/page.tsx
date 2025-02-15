@@ -105,58 +105,72 @@ const Auth = () => {
     try {
       if (isLogin) {
         // Sign In
-        const { error, data } = await supabase.auth.signInWithPassword({
+        console.log('Attempting sign in with:', { email: email.trim() });
+        const { error: signInError, data: signInData } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password: password.trim(),
         });
 
-        if (error || !data.user) {
+        if (signInError || !signInData.user) {
+          console.error('Sign in error:', signInError);
           setMessage('Invalid email or password.');
+          setIsLoading(false);
           return;
         }
 
-        // Determine which table to check based on stored role
-        let userRole = '';
-        const { data: teacherData } = await supabase
+        console.log('Sign in successful:', signInData);
+
+        // First check teachers table
+        const { data: teacherData, error: teacherError } = await supabase
           .from('teachers')
           .select('id')
-          .eq('id', data.user.id)
+          .eq('id', signInData.user.id)
           .single();
 
+        console.log('Teacher check:', { teacherData, teacherError });
+
         if (teacherData) {
-          userRole = 'teacher';
-        } else {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', data.user.id)
-            .single();
-
-          if (profileData) {
-            userRole = profileData.role;
-          }
-        }
-
-        // Redirect based on role
-        if (userRole === 'teacher') {
-          router.push(`/Dashboard/Teacher/${data.user.id}`);
-        } else if (userRole === 'student') {
-          router.push(`/Dashboard/Student/${data.user.id}`);
-        } else {
-          setMessage('Error: User role not found');
+          // User is a teacher
+          router.push(`/Dashboard/Teacher/${signInData.user.id}`);
           return;
         }
+
+        // If not a teacher, check profiles table
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, id')
+          .eq('id', signInData.user.id)
+          .single();
+
+        console.log('Profile check:', { profileData, profileError });
+
+        if (profileError || !profileData) {
+          setMessage('Error: User profile not found');
+          setIsLoading(false);
+          return;
+        }
+
+        if (profileData.role === 'student') {
+          router.push(`/Dashboard/Student/${signInData.user.id}`);
+        } else {
+          setMessage('Error: Invalid user role');
+          setIsLoading(false);
+        }
+
       } else {
         // Sign Up
+        console.log('Attempting sign up with:', { email: email.trim(), role });
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password: password.trim(),
         });
 
         if (error) {
+          console.error('Sign up error:', error);
           setMessage(error.message.includes('already registered')
             ? 'This email is already registered. Please log in instead.'
             : error.message);
+          setIsLoading(false);
           return;
         }
 
@@ -174,7 +188,9 @@ const Auth = () => {
                 }]);
 
               if (teacherError) {
+                console.error('Teacher creation error:', teacherError);
                 setMessage('Error creating teacher account: ' + teacherError.message);
+                setIsLoading(false);
                 return;
               }
             } else {
@@ -190,7 +206,9 @@ const Auth = () => {
                 }]);
 
               if (profileError) {
+                console.error('Student profile creation error:', profileError);
                 setMessage('Error creating student profile: ' + profileError.message);
+                setIsLoading(false);
                 return;
               }
             }
@@ -199,11 +217,13 @@ const Auth = () => {
             setIsLogin(true);
             resetForm();
           } catch (error: any) {
+            console.error('Profile creation error:', error);
             setMessage('Error during registration: ' + error.message);
           }
         }
       }
     } catch (error: any) {
+      console.error('Authentication error:', error);
       setMessage(error.message);
     } finally {
       setIsLoading(false);
