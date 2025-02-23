@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { FileUpload } from "./ui/file-upload";
 import axios from "axios";
+import supabase from "@/lib/supabase";
 
 interface UploadState {
   uploading: boolean;
@@ -9,7 +10,6 @@ interface UploadState {
   error: string | null;
   success: boolean;
 }
-
 export function FileUploadComponent() {
   const [files, setFiles] = useState<File[]>([]);
   const [uploadState, setUploadState] = useState<UploadState>({
@@ -35,28 +35,27 @@ export function FileUploadComponent() {
       });
 
       try {
-        const formData = new FormData();
-        files.forEach((file, index) => {
-          formData.append(`file${index}`, file);
-        });
+        console.log("Uploading files:", files);
+        for(const file of files){
+          const filepath=`uploads/${Date.now()}_${file.name}`
 
-        const response = await axios.post('/your-upload-url', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          onUploadProgress: (progressEvent) => {
-            if (progressEvent.total) {
-              const progress = Math.round(
-                (progressEvent.loaded * 100) / progressEvent.total
-              );
-              setUploadState(prev => ({
-                ...prev,
-                progress,
-              }));
-            }
-          },
-        });
-
+          console.log("Uploading files:", file.name);
+        
+        const {data,error}= await supabase
+        .storage
+        .from(`autopint_files`)
+        .upload(filepath,file);
+        if (error) {
+          console.error("Upload error:", error);
+          setUploadState({
+            uploading: false,
+            progress: 0,
+            error: error.message,
+            success: false,
+          });
+          return;
+        }
+      }
         setUploadState(prev => ({
           ...prev,
           uploading: false,

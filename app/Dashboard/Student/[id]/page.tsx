@@ -16,11 +16,13 @@ const StudentDashboard = () => {
   const [activities, setActivities] = useState<
     { id: number; name: string; date: string; points: number; status: string }[]
   >([]);
+  
   const [formData, setFormData] = useState({
-    activityType: "Workshop",
-    date: "",
+    activityType: "",
+    date: "",                   //{ nameof ceritificate , type ,who issue ,time issued,}
     description: "",
-    fileUrl: "",
+    file: "",
+    
   });
 
   useEffect(() => {
@@ -52,6 +54,7 @@ const StudentDashboard = () => {
         setActivities(data);
       }
     };
+    
 
     fetchUserData();
     fetchActivities();
@@ -62,30 +65,35 @@ const StudentDashboard = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Handle Form Submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!userId) return;
+                  // Handle Form Submission
+                const handleSubmit = async (e: React.FormEvent) => {
+                e.preventDefault();
+                const nowdate=Date.now()
+                 if (!userId) return;
+                   
+                 const { error } = await supabase.from("activities").insert([
+                    {
+                      id: userId,
+                      activity_name: formData.activityType,
+                      date: formData.date,
+                      points: 10, 
+                      status: "pending",
+                      description: formData.description,
+                      file_url: formData.file,
+                    },
+                 ]);
+                
 
-    const { error } = await supabase.from("activities").insert([
-      {
-        user_id: userId,
-        name: formData.activityType,
-        date: formData.date,
-        points: 10, // Set default points; later this can be dynamic
-        status: "Pending",
-        description: formData.description,
-        file_url: formData.fileUrl,
-      },
-    ]);
+                    if (error) {
+                      console.error("Error submitting activity:", error.message);
+                    } else {
+                      alert("Activity submitted successfully!");
+                      setFormData({ activityType: "Workshop", date:`${nowdate}`, description: "", file: "" });
+                    }
+                  };
 
-    if (error) {
-      console.error("Error submitting activity:", error.message);
-    } else {
-      alert("Activity submitted successfully!");
-      setFormData({ activityType: "Workshop", date: "", description: "", fileUrl: "" });
-    }
-  };
+
+
 
   // Handle Logout
   const handleSignOut = async () => {
