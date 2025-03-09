@@ -4,26 +4,60 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import supabase from "@/lib/supabase";
 import { Activity, Award, Book, Calendar } from "lucide-react";
-import { FileUploadComponent } from "@/app/components/Fileupload";
+import { CertificateUploadComponent } from "@/app/components/CertificateUploadComponent";
+import { CertificateForm } from "@/app/components/CertificateForm";
 
+// Define interfaces for data types
+interface UserData {
+  class_name: string;
+  role: string;
+  student_name: string;
+}
+
+interface ActivityData {
+  id: number;
+  activity_name: string;
+  date: string;
+  points: number;
+  status: string;
+}
+
+// Define interface for extracted data
+interface ExtractedData {
+  certificateName: string;
+  certificateType: string;
+  issuer: string;
+  dateOfIssue: string;
+  fileObject: File | null;
+  [key: string]: any;
+}
+
+// Define certificate types and points mapping
+type CertificateType = 
+  | "MOOC" 
+  | "Internship" 
+  | "Workshop" 
+  | "Paper Presentation" 
+  | "Tech Fest" 
+  | "Sports Event" 
+  | "Participation" 
+  | "Completion" 
+  | "Achievement" 
+  | "Appreciation" 
+  | "Other";
 
 const StudentDashboard = () => {
   const params = useParams();
   const router = useRouter();
   const userId = params?.id as string; // Get user ID from URL
 
-  const [userData, setUserData] = useState<{ class_name: string; role: string; student_name: string } | null>(null);
-  const [activities, setActivities] = useState<
-    { id: number; name: string; date: string; points: number; status: string }[]
-  >([]);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [activities, setActivities] = useState<ActivityData[]>([]);
   
-  const [formData, setFormData] = useState({
-    activityType: "",
-    date: "",                   //{ nameof ceritificate , type ,who issue ,time issued,}
-    description: "",
-    file: "",
-    
-  });
+  // Certificate upload state
+  const [showCertificateForm, setShowCertificateForm] = useState(false);
+  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -45,9 +79,9 @@ const StudentDashboard = () => {
     const fetchActivities = async () => {
       const { data, error } = await supabase
         .from("activities")
-        .select("id, name, date, points, status")
+        .select("id, activity_name, date, points, status")
         .eq("user_id", userId);
-
+    
       if (error) {
         console.error("Error fetching activities:", error.message);
       } else {
@@ -55,45 +89,104 @@ const StudentDashboard = () => {
       }
     };
     
-
     fetchUserData();
     fetchActivities();
   }, [userId]);
 
-  // Handle Form Input Changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Handle certificate data extraction
+  const handleDataExtracted = (data: ExtractedData) => {
+    setExtractedData(data);
+    setShowCertificateForm(true);
   };
 
-                  // Handle Form Submission
-                const handleSubmit = async (e: React.FormEvent) => {
-                e.preventDefault();
-                const nowdate=Date.now()
-                 if (!userId) return;
-                   
-                 const { error } = await supabase.from("activities").insert([
-                    {
-                      id: userId,
-                      activity_name: formData.activityType,
-                      date: formData.date,
-                      points: 10, 
-                      status: "pending",
-                      description: formData.description,
-                      file_url: formData.file,
-                    },
-                 ]);
-                
-
-                    if (error) {
-                      console.error("Error submitting activity:", error.message);
-                    } else {
-                      alert("Activity submitted successfully!");
-                      setFormData({ activityType: "Workshop", date:`${nowdate}`, description: "", file: "" });
-                    }
-                  };
-
-
-
+  // Handle form submission
+  const handleFormSubmit = async (formData: any) => {
+    if (!userId) return;
+    setIsSubmitting(true);
+    
+    try {
+      // First upload the certificate file to storage
+      let fileUrl = "";
+      if (formData.fileObject) {
+        const fileExt = formData.fileObject.name.split('.').pop();
+        const fileName = `${userId}_${Date.now()}.${fileExt}`;
+        const filePath = `certificates/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('autopint_files')
+          .upload(filePath, formData.fileObject);
+          
+        if (uploadError) {
+          throw new Error(`Error uploading file: ${uploadError.message}`);
+        }
+        
+        const { data } = supabase.storage
+          .from('autopint_files')
+          .getPublicUrl(filePath);
+          
+        fileUrl = data.publicUrl;
+      }
+      
+      // Then create activity record
+      const { error } = await supabase.from("activities").insert([
+        {
+          user_id: userId,
+          activity_name: formData.certificateName,
+          certificate_type: formData.certificateType,
+          issuer: formData.issuer,
+          date: formData.dateOfIssue,
+          points: calculatePoints(formData.certificateType as CertificateType),
+          status: "pending",
+          description: formData.description,
+          file_url: fileUrl,
+        },
+      ]);
+      
+      if (error) {
+        throw new Error(`Error submitting activity: ${error.message}`);
+      }
+      
+      // Refresh activities
+      const { data, error: fetchError } = await supabase
+        .from("activities")
+        .select("id, activity_name, date, points, status")
+        .eq("user_id", userId);
+        
+      if (!fetchError) {
+        setActivities(data);
+      }
+      
+      // Reset form state
+      setExtractedData(null);
+      setShowCertificateForm(false);
+      
+      alert("Certificate submitted successfully!");
+    } catch (error: any) {
+      console.error("Error:", error.message);
+      alert(`Failed to submit certificate: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Calculate points based on certificate type
+  const calculatePoints = (certificateType: CertificateType): number => {
+    const pointsMap: Record<CertificateType, number> = {
+      "MOOC": 15,
+      "Internship": 30,
+      "Workshop": 10,
+      "Paper Presentation": 25,
+      "Tech Fest": 20,
+      "Sports Event": 15,
+      "Participation": 5,
+      "Completion": 10,
+      "Achievement": 20,
+      "Appreciation": 10,
+      "Other": 5
+    };
+    
+    return pointsMap[certificateType] || 5;
+  };
 
   // Handle Logout
   const handleSignOut = async () => {
@@ -145,7 +238,7 @@ const StudentDashboard = () => {
               <Calendar className="h-6 w-6 text-[#7469B6]" />
             </div>
             <p className="text-3xl font-bold text-[#7469B6]">
-              {activities.filter((act) => act.status === "Pending").length}
+              {activities.filter((act) => act.status === "pending").length}
             </p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
@@ -154,7 +247,7 @@ const StudentDashboard = () => {
               <Book className="h-6 w-6 text-[#7469B6]" />
             </div>
             <p className="text-3xl font-bold text-[#7469B6]">
-              {activities.filter((act) => act.status === "Approved").length}
+              {activities.filter((act) => act.status === "approved").length}
             </p>
           </div>
         </div>
@@ -166,46 +259,60 @@ const StudentDashboard = () => {
             <table className="w-full">
               <thead>
                 <tr className="border-b-2 border-gray-200">
-                  <th className="text-left py-3 px-4">Activity</th>
-                  <th className="text-left py-3 px-4">Date</th>
-                  <th className="text-left py-3 px-4">Points</th>
-                  <th className="text-left py-3 px-4">Status</th>
+                  <th className="text-left py-3 px-4 text-gray-800">Activity</th>
+                  <th className="text-left py-3 px-4 text-gray-800">Date</th>
+                  <th className="text-left py-3 px-4 text-gray-800">Points</th>
+                  <th className="text-left py-3 px-4 text-gray-800">Status</th>
                 </tr>
-              </thead>
+              </thead>  
               <tbody>
-                {activities.map((activity) => (
-                  <tr key={activity.id} className="border-b border-gray-100">
-                    <td className="py-3 px-4">{activity.name}</td>
-                    <td className="py-3 px-4">{activity.date}</td>
-                    <td className="py-3 px-4">{activity.points}</td>
-                    <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-sm ${
-                        activity.status === "Approved" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                      }`}>
-                        {activity.status}
-                      </span>
+                {activities.length > 0 ? (
+                  activities.map((activity) => (
+                    <tr key={activity.id} className="border-b border-gray-100">
+                      <td className="py-3 px-4 text-gray-800">{activity.activity_name}</td>
+                      <td className="py-3 px-4 text-gray-800">{activity.date}</td>
+                      <td className="py-3 px-4 text-gray-800">{activity.points}</td>
+                      <td className="py-3 px-4 text-gray-800">
+                        <span className={`px-2 py-1 rounded-full text-sm ${
+                          activity.status === "Approved" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {activity.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-4 text-center text-gray-800">
+                      No activities found. Upload your first certificate below!
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Upload Activity Form */}
+        {/* Upload Certificate Section */}
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-bold text-[#7469B6] mb-6">Upload New Activity</h2>
-          <form onSubmit={handleSubmit}>
-            <div className="py-3">
-            <FileUploadComponent />
+          <h2 className="text-xl font-bold text-[#7469B6] mb-6">Upload Certificate</h2>
+          
+          {!showCertificateForm ? (
+            <CertificateUploadComponent onDataExtracted={handleDataExtracted} />
+          ) : (
+            <div>
+              <CertificateForm 
+                extractedData={extractedData as ExtractedData} 
+                onSubmit={handleFormSubmit} 
+              />
+              <button 
+                onClick={() => setShowCertificateForm(false)}
+                className="mt-4 text-[#7469B6] hover:text-[#AD88C6]"
+              >
+                ← Back to upload
+              </button>
             </div>
-           <div className="flex justify-center">
-           <button type="submit" className="w-1/2  bg-[#7469B6] text-white py-2 px-4 rounded-lg">
-              Submit Activity
-            </button>
-           </div>
-           
-          </form>
+          )}
         </div>
       </main>
     </div>

@@ -1,18 +1,18 @@
-import React from "react";
+import React, { ReactNode } from "react";
 
 interface TableProps {
   headers: string[];
-  data: (React.ReactNode | string | number)[][];
+  data: (string | number | ReactNode)[][];
 }
 
 const Table: React.FC<TableProps> = ({ headers, data }) => {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full border-collapse border border-gray-200">
-        <thead className="bg-gray-100">
-          <tr>
+      <table className="w-full text-gray-800">
+        <thead>
+          <tr className="border-b-2 border-gray-200 text-gray-800">
             {headers.map((header, index) => (
-              <th key={index} className="border border-gray-300 px-4 py-2 text-left">
+              <th key={index} className="text-left py-3 px-4 text-gray-800">
                 {header}
               </th>
             ))}
@@ -21,9 +21,9 @@ const Table: React.FC<TableProps> = ({ headers, data }) => {
         <tbody>
           {data.length > 0 ? (
             data.map((row, rowIndex) => (
-              <tr key={rowIndex} className="border-t border-gray-200">
+              <tr key={rowIndex} className="border-b border-gray-100 text-gray-800">
                 {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className="border border-gray-300 px-4 py-2">
+                  <td key={cellIndex} className="py-3 px-4 text-gray-800">
                     {cell}
                   </td>
                 ))}
@@ -31,7 +31,7 @@ const Table: React.FC<TableProps> = ({ headers, data }) => {
             ))
           ) : (
             <tr>
-              <td colSpan={headers.length} className="text-center py-4 text-gray-500">
+              <td colSpan={headers.length} className="py-4 text-center text-gray-900">
                 No data available
               </td>
             </tr>

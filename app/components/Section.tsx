@@ -1,15 +1,15 @@
-import React from "react";
+import React, { ReactNode } from "react";
 
 interface SectionProps {
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 const Section: React.FC<SectionProps> = ({ title, children }) => {
   return (
-    <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">{title}</h2>
-      <div>{children}</div>
+    <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+      <h2 className="text-xl font-bold text-[#7469B6] mb-6">{title}</h2>
+      {children}
     </div>
   );
 };
