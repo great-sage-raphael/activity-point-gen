@@ -6,6 +6,7 @@ import Table from "@/app/components/Table";
 import StatCard from "@/app/components/StatCard";
 import Section from "@/app/components/Section";
 import { useRouter } from "next/navigation";
+import ActivityReportGenerator from "@/app/components/ActivityReportGenerator";
 
 interface Student {
   id: string;
@@ -567,6 +568,9 @@ export default function TeacherDashboard() {
                 </div>
               )}
             </Section>
+            <div>
+              <ActivityReportGenerator />
+            </div>
 
             <Section title="Pending Activities">
               {pendingActivities.length > 0 ? (

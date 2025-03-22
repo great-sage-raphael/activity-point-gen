@@ -7,6 +7,7 @@ import { Activity, Award, Book, Calendar } from "lucide-react";
 import { CertificateUploadComponent } from "@/app/components/CertificateUploadComponent";
 import { CertificateForm } from "@/app/components/CertificateForm";
 
+
 // Define interfaces for data types
 interface UserData {
   class_name: string;
@@ -202,13 +203,25 @@ const StudentDashboard = () => {
     <div className="min-h-screen bg-[#FFE6E6]">
       {/* Header */}
       <header className="bg-[#7469B6] text-white py-4">
-        <div className="container mx-auto px-6">
+        <div className="container mx-auto px-6 bg-[#7469B6]">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Student Dashboard</h1>
             <button onClick={handleSignOut} className="bg-[#AD88C6] px-4 py-2 rounded-lg hover:bg-[#E1AFD1] transition-colors">
               Sign Out
             </button>
           </div>
+        </div>
+        <div>
+          {userData && (
+            <div className="container mx-auto px-6 mt-4 rounded-md bg-[#a69be2]">
+              <p className="text-lg">
+                <span className="font-semibold">Name:</span> {userData.student_name}
+              </p>
+              <p className="text-lg">
+                <span className="font-semibold">Class:</span> {userData.class_name}
+              </p>
+            </div>
+          )}
         </div>
       </header>
 
@@ -315,6 +328,7 @@ const StudentDashboard = () => {
           )}
         </div>
       </main>
+            
     </div>
   );
 };
