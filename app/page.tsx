@@ -31,7 +31,7 @@ export default function Home() {
         <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="md:w-1/2 mb-10 md:mb-0">
             <h1 className="text-5xl font-bold text-[#7469B6] mb-6">
-              Seamlessly Manage Activity Points!
+              Seamlessly Manage Activity Points !
             </h1>
             <p className="text-lg text-gray-700 mb-8">
               Transform your academic journey with our intelligent activity points management system. 
