@@ -1,6 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { Users, CheckCircle, XCircle, Clock, Award, FileText, Edit, Eye, ArrowLeft } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { Users, CheckCircle, XCircle, Clock, FileText, Edit, Eye, ArrowLeft } from "lucide-react";
 import supabase from "@/lib/supabase";
 import Table from "@/app/components/Table";
 import StatCard from "@/app/components/StatCard";
@@ -52,12 +52,7 @@ export default function TeacherDashboard() {
   const [teacherName, setTeacherName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [view, setView] = useState<"dashboard" | "student-details">("dashboard");
-
-  useEffect(() => {
-    fetchTeacherData();
-  }, []);
-
-  const fetchTeacherData = async () => {
+  const fetchTeacherData = useCallback( async () => {
     try {
       setIsLoading(true);
       const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -107,7 +102,12 @@ export default function TeacherDashboard() {
     } finally {
       setIsLoading(false);
     }
-  };
+  },[router]);
+  useEffect(() => {
+    fetchTeacherData();
+  }, [fetchTeacherData]);
+
+  
 
   const fetchStats = async (teacherId: string) => {
     if (!teacherId) return;

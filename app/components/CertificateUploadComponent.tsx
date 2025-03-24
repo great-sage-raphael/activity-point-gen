@@ -2,6 +2,7 @@
 
 import { useState, ChangeEvent } from "react";
 import { Upload, AlertCircle, CheckCircle, X } from "lucide-react";
+import Image from "next/image";
 
 interface ExtractedData {
   certificateName: string;
@@ -145,10 +146,23 @@ export const CertificateUploadComponent = ({ onDataExtracted }: CertificateUploa
           ) : (
             <div className="relative">
              {file && file.type.startsWith('image/') ? (
-      <img src={previewUrl} alt="Certificate preview" className="max-h-48 mx-auto" />
+     <Image
+     src={previewUrl} 
+     alt="Certificate preview" 
+     className="max-h-48 mx-auto" 
+     width={500} 
+     height={300} 
+     unoptimized
+   />
          ) : file ? (
              <div className="flex flex-col items-center">
-              <img src="/pdf-icon.png" alt="PDF file" className="h-16 w-16" />
+            <Image 
+          src="/pdf-icon.png" 
+          alt="PDF file" 
+          width={64} 
+          height={64} 
+          className="h-16 w-16"
+        />
               <p className="text-sm mt-2">{file.name}</p>
              </div>
          ) : null}

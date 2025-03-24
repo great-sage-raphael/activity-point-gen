@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
-
 import Section from "@/app/components/Section";
 import supabase from '@/lib/supabase';
 
@@ -100,6 +99,7 @@ export default function ActivityReportGenerator() {
         } catch (e) {
           // If parsing fails, use status text
           errorMessage = `${errorMessage}: ${response.statusText}`;
+          console.error('Error parsing response:', e);
         }
         throw new Error(errorMessage);
       }
@@ -165,12 +165,12 @@ export default function ActivityReportGenerator() {
         )}
         
         <div className="mb-4">
-          <label htmlFor="student-select" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="student-select" className="block text-sm font-medium text-gray-800 mb-1">
             Select Student (optional)
           </label>
           <select
             id="student-select"
-            className="w-full p-2 border border-gray-300 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
+            className="w-full p-2 border border-gray-300 text-gray-600 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
             value={selectedStudent}
             onChange={(e) => setSelectedStudent(e.target.value)}
           >
@@ -190,7 +190,7 @@ export default function ActivityReportGenerator() {
             </label>
             <select
               id="sort-by"
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
+              className="w-full p-2 border text-gray-600 border-gray-300 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
@@ -207,7 +207,7 @@ export default function ActivityReportGenerator() {
             </label>
             <select
               id="sort-order"
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
+              className="w-full p-2 border text-gray-600 border-gray-300 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as SortOrder)}
             >

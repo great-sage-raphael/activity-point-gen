@@ -58,7 +58,7 @@ const StudentDashboard = () => {
   // Certificate upload state
   const [showCertificateForm, setShowCertificateForm] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -103,7 +103,7 @@ const StudentDashboard = () => {
   // Handle form submission
   const handleFormSubmit = async (formData: any) => {
     if (!userId) return;
-    setIsSubmitting(true);
+    
     
     try {
       // First upload the certificate file to storage
@@ -166,7 +166,7 @@ const StudentDashboard = () => {
       console.error("Error:", error.message);
       alert(`Failed to submit certificate: ${error.message}`);
     } finally {
-      setIsSubmitting(false);
+      
     }
   };
   

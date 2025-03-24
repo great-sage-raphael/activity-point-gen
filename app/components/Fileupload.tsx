@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { FileUpload } from "./ui/file-upload";
-import axios from "axios";
 import supabase from "@/lib/supabase";
 
 interface UploadState {
@@ -41,7 +40,7 @@ export function FileUploadComponent() {
 
           console.log("Uploading files:", file.name);
         
-        const {data,error}= await supabase
+        const {error}= await supabase
         .storage
         .from(`autopint_files`)
         .upload(filepath,file);

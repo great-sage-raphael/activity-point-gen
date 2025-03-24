@@ -33,7 +33,7 @@ const Auth = () => {
       if (role === 'student' && !isLogin) {
         setTeacherFetchError('');
         try {
-          let { data, error } = await supabase
+          const { data, error } = await supabase
             .from('teachers')
             .select('id, name, email');
 
