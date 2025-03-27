@@ -20,6 +20,8 @@ export default function ActivityReportGenerator() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [fromYear, setFromYear] = useState<string>('2024');
+  const [toYear, setToYear] = useState<string>('2024');
 
   // Fetch students when component mounts
   useEffect(() => {
@@ -77,6 +79,8 @@ export default function ActivityReportGenerator() {
       
       params.append('sortBy', sortBy);
       params.append('sortOrder', sortOrder);
+      params.append('fromYear', fromYear);
+      params.append('toYear', toYear);
       
       if (params.toString()) {
         url += `?${params.toString()}`;
@@ -211,9 +215,39 @@ export default function ActivityReportGenerator() {
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as SortOrder)}
             >
-              <option value="desc">Newest First</option>
-              <option value="asc">Oldest First</option>
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
             </select>
+          </div>
+          
+          <div>
+            <label htmlFor="from-year" className="block text-sm font-medium text-gray-700 mb-1">
+              From Year
+            </label>
+            <input
+              id="from-year"
+              type="number"
+              className="w-full p-2 border text-gray-600 border-gray-300 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
+              value={fromYear}
+              onChange={(e) => setFromYear(e.target.value)}
+              min="2000"
+              max="2100"
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="to-year" className="block text-sm font-medium text-gray-700 mb-1">
+              To Year
+            </label>
+            <input
+              id="to-year"
+              type="number"
+              className="w-full p-2 border text-gray-600 border-gray-300 rounded-md focus:ring-[#7469B6] focus:border-[#7469B6]"
+              value={toYear}
+              onChange={(e) => setToYear(e.target.value)}
+              min="2000"
+              max="2100"
+            />
           </div>
         </div>
         
@@ -237,7 +271,8 @@ export default function ActivityReportGenerator() {
         
         <p className="mt-4 text-sm text-gray-600">
           {`This will generate a report ${selectedStudent ? 'for the selected student' : 'for all students'}, 
-           sorted by ${sortBy.replace('_', ' ')} in ${sortOrder === 'asc' ? 'ascending' : 'descending'} order.`}
+           sorted by ${sortBy.replace('_', ' ')} in ${sortOrder === 'asc' ? 'ascending' : 'descending'} order 
+           from ${fromYear} to ${toYear}.`}
         </p>
       </div>
     </Section>

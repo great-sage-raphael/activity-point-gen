@@ -8,9 +8,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const studentId = searchParams.get('studentId');
     const sortBy = searchParams.get('sortBy') || 'date';
+    const fromYear = searchParams.get('fromYear');
+    const toYear = searchParams.get('toYear');
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    console.log('Generating Excel report with params:', { studentId, sortBy, sortOrder });
+    console.log('Generating Excel report with params:', { studentId, sortBy, fromYear, toYear, sortOrder });
 
     // Query for approved activities
     let query = supabase
@@ -33,6 +35,13 @@ export async function GET(req: NextRequest) {
     // Filter by student if studentId is provided
     if (studentId) {
       query = query.eq('user_id', studentId);
+    }
+
+    // Filter by year range if both fromYear and toYear are provided
+    if (fromYear && toYear) {
+      query = query
+        .gte('date', `01-01-${fromYear}`)
+        .lte('date', `12-31-${toYear}`);
     }
 
     // Apply sorting based on the provided parameters
